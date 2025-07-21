@@ -1,4 +1,3 @@
-// components/FlowBuilder.tsx
 "use client";
 import ReactFlow, {
   Background,
@@ -6,82 +5,98 @@ import ReactFlow, {
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
+  Node,
+  Edge,
+  Connection,
   NodeChange,
   EdgeChange,
-  Connection,
-  Edge,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useCallback, useState } from "react";
 
+import { useCallback, useState } from "react";
 import TextNode from "./nodes/TextNode";
 import NodesPanel from "./NodesPanel";
 import SettingsPanel from "./SettingsPanel";
 import { validateFlow } from "../utils/validation";
 
+import { TextNodeData } from "../types/flow";
+
 const nodeTypes = { text: TextNode };
 
 export default function FlowBuilder() {
-  const [nodes, setNodes] = useState<any[]>([]);
-  const [edges, setEdges] = useState<any[]>([]);
-  const [selectedNode, setSelectedNode] = useState<any | null>(null);
+  const [nodes, setNodes] = useState<Node<TextNodeData>[]>([]);
+  const [edges, setEdges] = useState<Edge[]>([]);
+  const [selectedNode, setSelectedNode] = useState<Node<TextNodeData> | null>(
+    null
+  );
 
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) =>
-      setNodes((nds) => applyNodeChanges(changes, nds)),
-    []
-  );
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) =>
-      setEdges((eds) => applyEdgeChanges(changes, eds)),
-    []
-  );
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    setNodes((nds) => applyNodeChanges(changes, nds));
+  }, []);
+
+  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+    setEdges((eds) => applyEdgeChanges(changes, eds));
+  }, []);
+
   const onConnect = useCallback(
-    (connection: Edge | Connection) => {
+    (connection: Connection) => {
       const existing = edges.find((e) => e.source === connection.source);
-      if (existing) return; // only one edge from source
+      if (existing) return; // Only one edge per source
       setEdges((eds) => addEdge(connection, eds));
     },
     [edges]
   );
 
-  const onDrop = useCallback(
-    (event: {
-      dataTransfer: { getData: (arg0: string) => any };
-      clientX: number;
-      clientY: number;
-    }) => {
-      const type = event.dataTransfer.getData("application/reactflow");
-      const position = { x: event.clientX - 200, y: event.clientY - 60 };
+  const onDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
 
-      const newNode = {
-        id: `${+new Date()}`,
-        type,
-        position,
-        data: { label: "" },
-      };
+    const type = event.dataTransfer.getData("application/reactflow");
+    if (!type) return;
 
-      setNodes((nds) => [...nds, newNode]);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const position = {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
+    };
+
+    const newNode: Node<TextNodeData> = {
+      id: `${+new Date()}`,
+      type,
+      position,
+      data: { label: "", type: "text" },
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+  }, []);
+
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node<TextNodeData>) => {
+      setSelectedNode(node);
     },
     []
   );
 
-  const onNodeClick = useCallback((_: any, node: any) => {
-    setSelectedNode(node);
-  }, []);
-
   const updateSelectedNodeLabel = (label: string) => {
     setNodes((nds) =>
       nds.map((n) =>
-        n.id === selectedNode.id ? { ...n, data: { ...n.data, label } } : n
+        n.id === selectedNode?.id ? { ...n, data: { ...n.data, label } } : n
       )
     );
-    setSelectedNode((n: any) => ({ ...n, data: { ...n.data, label } }));
+
+    if (selectedNode) {
+      setSelectedNode({
+        ...selectedNode,
+        data: { ...selectedNode.data, label },
+      });
+    }
   };
 
   const handleSave = () => {
     const error = validateFlow(nodes, edges);
-    if (error) return alert(error);
+    if (error) {
+      alert(error);
+      return;
+    }
     alert("Flow saved successfully!");
     console.log({ nodes, edges });
   };

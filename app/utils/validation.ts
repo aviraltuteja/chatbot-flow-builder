@@ -1,11 +1,16 @@
-// utils/validation.ts
-export const validateFlow = (nodes: any[], edges: any[]) => {
+import { Node, Edge } from "reactflow";
+import { TextNodeData } from "../types/flow";
+
+export const validateFlow = (
+  nodes: Node<TextNodeData>[],
+  edges: Edge[]
+): string | null => {
   if (nodes.length <= 1) return null;
 
-  const sourceMap = new Set(edges.map((e) => e.source));
-  const missingTargets = nodes.filter((node) => !sourceMap.has(node.id));
+  const sourceIds = new Set(edges.map((e) => e.source));
+  const nodesWithoutOutgoing = nodes.filter((n) => !sourceIds.has(n.id));
 
-  if (missingTargets.length > 1) {
+  if (nodesWithoutOutgoing.length > 1) {
     return "Error: Multiple nodes are missing outgoing connections!";
   }
 
